@@ -28,7 +28,7 @@ zig build run -- <input.wav> <model.nam> <output.wav>
 
 Example:
 ```bash
-zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/JCM800.nam zig-out/test.wav
+zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/JCM800.nam zig-out/test.wav samples/ir/CelestionVintage30/48.0kHz/500ms/CenzoCelestionV30Mix.wav
 ```
 
 ### NAM + IR Cabinet (Chained)
