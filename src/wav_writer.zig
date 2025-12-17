@@ -35,6 +35,17 @@ fn writeI32LE(file: std.fs.File, value: i32) Error!void {
     try file.writeAll(&bytes);
 }
 
+/// Soft clip (tanh-like saturation) to prevent clipping distortion
+fn softClip(sample: f32) f32 {
+    // Simple soft clipping using saturation
+    if (sample > 1.0) {
+        return 1.0;
+    } else if (sample < -1.0) {
+        return -1.0;
+    }
+    return sample;
+}
+
 /// Write WAV file header and samples
 pub fn writeSamples(
     file: std.fs.File,
@@ -69,11 +80,12 @@ pub fn writeSamples(
 
     // Write samples
     for (samples) |sample| {
+        const clipped = softClip(sample);
         if (config.bits_per_sample == 16) {
-            const sample_i16 = @as(i16, @intFromFloat(sample * 32767.0));
+            const sample_i16 = @as(i16, @intFromFloat(clipped * 32767.0));
             try writeI16LE(file, sample_i16);
         } else if (config.bits_per_sample == 24) {
-            const sample_i32 = @as(i32, @intFromFloat(sample * 8388607.0));
+            const sample_i32 = @as(i32, @intFromFloat(clipped * 8388607.0));
             const sample_u32 = @as(u32, @bitCast(sample_i32));
             var bytes: [3]u8 = undefined;
             bytes[0] = @truncate(sample_u32);
@@ -81,7 +93,7 @@ pub fn writeSamples(
             bytes[2] = @truncate(sample_u32 >> 16);
             try file.writeAll(&bytes);
         } else if (config.bits_per_sample == 32) {
-            const sample_i32 = @as(i32, @intFromFloat(sample * 2147483647.0));
+            const sample_i32 = @as(i32, @intFromFloat(clipped * 2147483647.0));
             try writeI32LE(file, sample_i32);
         }
     }
