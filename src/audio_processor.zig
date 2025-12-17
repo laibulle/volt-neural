@@ -1,6 +1,7 @@
 //! Audio processing pipeline - coordinates model and I/O
 const std = @import("std");
 const nam = @import("nam.zig");
+const ir = @import("ir.zig");
 const wav_reader = @import("wav_reader.zig");
 const wav_writer = @import("wav_writer.zig");
 const nam_ffi = @import("nam_ffi.zig");
@@ -12,6 +13,7 @@ pub const Error = error{
 
 pub const Processor = struct {
     model: nam.Model,
+    convolver: ?ir.Convolver = null,
     allocator: std.mem.Allocator,
     buffer_size: u32 = 4096,
 
@@ -23,8 +25,27 @@ pub const Processor = struct {
         };
     }
 
+    /// Initialize with both NAM model and IR
+    pub fn initWithIR(allocator: std.mem.Allocator, model_path: []const u8, ir_path: []const u8) !Processor {
+        const model = try nam.Model.load(allocator, model_path);
+        const ir_obj = try ir.IR.load(allocator, ir_path);
+        const convolver = try ir.Convolver.init(allocator, ir_obj);
+
+        return Processor{
+            .model = model,
+            .convolver = convolver,
+            .allocator = allocator,
+        };
+    }
+
     pub fn deinit(self: *Processor) void {
         self.model.deinit();
+        if (self.convolver) |*conv| {
+            conv.deinit();
+            // Also free the IR inside the convolver
+            var ir_obj = conv.ir;
+            ir_obj.deinit();
+        }
     }
 
     /// Process WAV file through model
@@ -87,8 +108,16 @@ pub const Processor = struct {
             const input_chunk = input_samples[sample_idx .. sample_idx + chunk_size];
             const output_chunk = output_samples[sample_idx .. sample_idx + chunk_size];
 
-            // Process chunk through model
+            // Process chunk through NAM model
             self.model.process(input_chunk, output_chunk);
+
+            // Apply IR convolution if available
+            if (self.convolver) |*conv| {
+                const ir_output = try self.allocator.alloc(f64, chunk_size);
+                defer self.allocator.free(ir_output);
+                conv.process(output_chunk, ir_output);
+                @memcpy(output_chunk, ir_output);
+            }
 
             sample_idx += chunk_size;
 

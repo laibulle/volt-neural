@@ -15,24 +15,35 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, args);
 
     if (args.len < 4) {
-        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav> [--buffer-size N]\n", .{});
+        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav> [ir.wav]\n", .{});
         std.debug.print("Example: volt_neural input.wav model.nam output.wav\n", .{});
+        std.debug.print("Example with IR: volt_neural input.wav model.nam output.wav cabinet.wav\n", .{});
         return;
     }
 
     const input_path = args[1];
     const model_path = args[2];
     const output_path = args[3];
+    const ir_path = if (args.len > 4) args[4] else null;
 
     std.debug.print("Input:  {s}\n", .{input_path});
     std.debug.print("Model:  {s}\n", .{model_path});
+    if (ir_path) |ir| {
+        std.debug.print("IR:     {s}\n", .{ir});
+    }
     std.debug.print("Output: {s}\n\n", .{output_path});
 
     // Initialize processor
-    var processor = audio_processor.Processor.init(allocator, model_path) catch |err| {
-        std.debug.print("Failed to initialize processor: {}\n", .{err});
-        return err;
-    };
+    var processor = if (ir_path) |ir|
+        audio_processor.Processor.initWithIR(allocator, model_path, ir) catch |err| {
+            std.debug.print("Failed to initialize processor with IR: {}\n", .{err});
+            return err;
+        }
+    else
+        audio_processor.Processor.init(allocator, model_path) catch |err| {
+            std.debug.print("Failed to initialize processor: {}\n", .{err});
+            return err;
+        };
     defer processor.deinit();
 
     std.debug.print("Model loaded successfully!\n", .{});
