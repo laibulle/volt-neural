@@ -70,7 +70,7 @@ pub fn readHeader(file: std.fs.File) Error!WavHeader {
         return Error.InvalidHeader;
     }
 
-    // Find fmt chunk
+    // Find fmt chunk and data chunk
     var fmt_found = false;
     var fmt_header: WavHeader = undefined;
 
@@ -114,7 +114,6 @@ pub fn readHeader(file: std.fs.File) Error!WavHeader {
                     remaining -= to_read;
                 }
             }
-            break;
         } else if (std.mem.eql(u8, &chunk_id, "data")) {
             if (!fmt_found) {
                 return Error.InvalidFormat;
@@ -139,7 +138,6 @@ pub fn readHeader(file: std.fs.File) Error!WavHeader {
             }
         }
     }
-    return fmt_header;
 }
 
 /// Read audio samples from WAV file

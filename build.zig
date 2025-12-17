@@ -92,9 +92,65 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    // Add NAM source files
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/util.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/dsp.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/convnet.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/lstm.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/activations.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/wavenet.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+    exe.addCSourceFile(.{
+        .file = b.path("deps/NeuralAmpModelerCore/NAM/get_dsp.cpp"),
+        .flags = &.{
+            "-std=c++20",
+            "-fPIC",
+        },
+    });
+
     // Enable C++ support
     exe.linkLibCpp();
     exe.addIncludePath(b.path("src"));
+
+    // Add NAM library include paths
+    exe.addIncludePath(b.path("deps/NeuralAmpModelerCore"));
+    exe.addIncludePath(b.path("deps/NeuralAmpModelerCore/Dependencies/eigen"));
+    exe.addIncludePath(b.path("deps/NeuralAmpModelerCore/Dependencies/nlohmann"));
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default

@@ -50,14 +50,21 @@ pub const Processor = struct {
             header.num_samples,
         });
 
-        // Read all samples
-        const input_samples = try wav_reader.readSamples(input_file, self.allocator, header);
+        // Read all samples (as f32 from WAV)
+        const input_samples_f32 = try wav_reader.readSamples(input_file, self.allocator, header);
+        defer self.allocator.free(input_samples_f32);
+
+        std.debug.print("Loaded {} samples\n", .{input_samples_f32.len});
+
+        // Convert input samples to f64 (NAM_SAMPLE type)
+        const input_samples = try self.allocator.alloc(f64, input_samples_f32.len);
         defer self.allocator.free(input_samples);
+        for (input_samples_f32, 0..) |sample, i| {
+            input_samples[i] = @as(f64, @floatCast(sample));
+        }
 
-        std.debug.print("Loaded {} samples\n", .{input_samples.len});
-
-        // Allocate output buffer
-        const output_samples = try self.allocator.alloc(f32, input_samples.len);
+        // Allocate output buffer (use f64 to match NAM_SAMPLE type)
+        const output_samples = try self.allocator.alloc(f64, input_samples.len);
         defer self.allocator.free(output_samples);
 
         // Reset model for this sample rate and buffer size
@@ -94,6 +101,13 @@ pub const Processor = struct {
 
         std.debug.print("Completed processing\n", .{});
 
+        // Convert output samples back to f32 for WAV output
+        const output_samples_f32 = try self.allocator.alloc(f32, output_samples.len);
+        defer self.allocator.free(output_samples_f32);
+        for (output_samples, 0..) |sample, i| {
+            output_samples_f32[i] = @as(f32, @floatCast(sample));
+        }
+
         // Write output file
         const output_file = std.fs.cwd().createFile(output_path, .{}) catch |err| {
             std.debug.print("Failed to create output file: {}\n", .{err});
@@ -107,8 +121,8 @@ pub const Processor = struct {
             .bits_per_sample = header.bits_per_sample,
         };
 
-        try wav_writer.writeSamples(output_file, output_config, output_samples);
+        try wav_writer.writeSamples(output_file, output_config, output_samples_f32);
 
-        std.debug.print("Written {} samples to {s}\n", .{ output_samples.len, output_path });
+        std.debug.print("Written {} samples to {s}\n", .{ output_samples_f32.len, output_path });
     }
 };

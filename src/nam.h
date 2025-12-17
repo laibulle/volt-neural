@@ -13,8 +13,8 @@ typedef struct {
     void* ptr;
 } NamDSP;
 
-// Audio sample type (float)
-typedef float NAM_SAMPLE;
+// Audio sample type (double - must match NAM library)
+typedef double NAM_SAMPLE;
 
 // Function return codes
 typedef int32_t NamResult;
