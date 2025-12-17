@@ -1,6 +1,6 @@
 const std = @import("std");
 const volt_neural = @import("volt_neural");
-const nam = @import("nam.zig");
+const audio_processor = @import("audio_processor.zig");
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -8,13 +8,15 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     std.debug.print("Volt Neural Amp Modeler v0.1\n", .{});
+    std.debug.print("========================\n\n", .{});
 
     // Get arguments
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
-    if (args.len < 3) {
-        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav>\n", .{});
+    if (args.len < 4) {
+        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav> [--buffer-size N]\n", .{});
+        std.debug.print("Example: volt_neural input.wav model.nam output.wav\n", .{});
         return;
     }
 
@@ -24,22 +26,31 @@ pub fn main() !void {
 
     std.debug.print("Input:  {s}\n", .{input_path});
     std.debug.print("Model:  {s}\n", .{model_path});
-    std.debug.print("Output: {s}\n", .{output_path});
+    std.debug.print("Output: {s}\n\n", .{output_path});
 
-    // Try to load the model
-    var model = nam.Model.load(allocator, model_path) catch |err| {
-        std.debug.print("Failed to load model: {}\n", .{err});
-        return;
+    // Initialize processor
+    var processor = audio_processor.Processor.init(allocator, model_path) catch |err| {
+        std.debug.print("Failed to initialize processor: {}\n", .{err});
+        return err;
     };
-    defer model.deinit();
+    defer processor.deinit();
 
     std.debug.print("Model loaded successfully!\n", .{});
-    std.debug.print("Expected sample rate: {d} Hz\n", .{model.expected_sample_rate});
-    std.debug.print("Has input level: {}\n", .{model.hasInputLevel()});
-    std.debug.print("Has output level: {}\n", .{model.hasOutputLevel()});
-    if (model.getLoudness()) |loudness| {
+    std.debug.print("Expected sample rate: {d} Hz\n", .{processor.model.expected_sample_rate});
+    std.debug.print("Has input level: {}\n", .{processor.model.hasInputLevel()});
+    std.debug.print("Has output level: {}\n", .{processor.model.hasOutputLevel()});
+    if (processor.model.getLoudness()) |loudness| {
         std.debug.print("Loudness: {d} dB\n", .{loudness});
     }
+    std.debug.print("\n", .{});
+
+    // Process file
+    processor.processFile(input_path, output_path) catch |err| {
+        std.debug.print("Processing failed: {}\n", .{err});
+        return err;
+    };
+
+    std.debug.print("\nDone!\n", .{});
 }
 
 test "simple test" {
