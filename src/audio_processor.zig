@@ -11,11 +11,18 @@ pub const Error = error{
     ProcessingFailed,
 } || wav_reader.Error || wav_writer.Error;
 
+/// Convert decibels to linear gain
+fn dbToGain(db: f64) f64 {
+    return std.math.pow(f64, 10.0, db / 20.0);
+}
+
 pub const Processor = struct {
     model: nam.Model,
     convolver: ?ir.Convolver = null,
     allocator: std.mem.Allocator,
     buffer_size: u32 = 4096,
+    /// Gain reduction applied before convolution (in dB, default 0 = no reduction)
+    pre_convolution_gain_db: f64 = 0.0,
 
     pub fn init(allocator: std.mem.Allocator, model_path: []const u8) !Processor {
         const model = try nam.Model.load(allocator, model_path);
@@ -113,6 +120,12 @@ pub const Processor = struct {
 
             // Apply IR convolution if available
             if (self.convolver) |*conv| {
+                // Reduce gain before convolution to prevent clipping
+                const gain = dbToGain(self.pre_convolution_gain_db);
+                for (output_chunk) |*sample| {
+                    sample.* *= gain;
+                }
+
                 const ir_output = try self.allocator.alloc(f64, chunk_size);
                 defer self.allocator.free(ir_output);
                 conv.process(output_chunk, ir_output);

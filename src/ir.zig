@@ -102,6 +102,16 @@ pub const Convolver = struct {
         self.allocator.free(self.history);
     }
 
+    /// Soft clip to prevent internal clipping in convolver
+    fn softClip(sample: f64) f64 {
+        if (sample > 1.0) {
+            return 1.0;
+        } else if (sample < -1.0) {
+            return -1.0;
+        }
+        return sample;
+    }
+
     /// Process a chunk of audio through the IR using time-domain convolution
     /// This uses a simple FIR filter approach (partitioned convolution would be faster)
     pub fn process(self: *Convolver, input: []const f64, output: []f64) void {
@@ -120,7 +130,8 @@ pub const Convolver = struct {
                 sum += self.history[hist_idx] * self.ir.samples[j];
             }
 
-            output[i] = sum;
+            // Soft clip to prevent internal clipping
+            output[i] = softClip(sum);
 
             // Move to next history position
             self.history_pos = (self.history_pos + 1) % @as(u32, @intCast(ir_len));

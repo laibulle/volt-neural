@@ -35,12 +35,23 @@ zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/
 Process through amp model, then apply cabinet IR:
 
 ```bash
-zig build run -- <input.wav> <model.nam> <output.wav> <cabinet.wav>
+zig build run -- <input.wav> <model.nam> <output.wav> <cabinet.wav> [OPTIONS]
 ```
 
-Example:
+Options:
+- `--gain dB` - Reduce level before convolution to prevent clipping (default: 0, try -6 or -12 if clipping occurs)
+- `--no-ir` - Skip IR processing even if provided (useful for A/B comparison)
+
+Examples:
 ```bash
+# Basic NAM + IR processing
 zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/JCM800.nam zig-out/test.wav samples/ir/CelestionVintage30/48.0kHz/200ms/CenzoCelestionV30Mix.wav
+
+# With gain reduction if clipping occurs
+zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/JCM800.nam zig-out/test.wav samples/ir/CelestionVintage30/48.0kHz/200ms/CenzoCelestionV30Mix.wav --gain -6
+
+# A/B comparison: NAM only (skip IR)
+zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/JCM800.nam zig-out/test_no_ir.wav samples/ir/CelestionVintage30/48.0kHz/200ms/CenzoCelestionV30Mix.wav --no-ir
 ```
 
 ## Architecture
@@ -93,9 +104,14 @@ zig build run -- samples/guitar/smooth-electric-guitar-chord.wav samples/neural/
 
 ### IR Convolution
 - Loads cabinet impulse responses from WAV files
-- Uses time-domain FIR filtering (partitioned convolution could improve performance)
-- Automatically mixes multi-channel IRs to mono
-- Processes in real-time with circular buffer
+- Uses time-domain FIR filtering with circular buffer for efficient real-time processing
+- Automatically mixes multi-channel IRs to mono for compatibility
+- **Gain Reduction** (Optional):
+  - Configurable pre-convolution gain reduction via `--gain dB` parameter
+  - Default is 0dB (no reduction) to preserve IR effect
+  - Use `--gain -6` to `-12` if clipping occurs during convolution
+  - Soft clipping inside convolver and writer handles remaining peaks
+- **A/B Comparison**: Use `--no-ir` flag to compare NAM-only vs NAM+IR processing
 
 ### Audio Format Support
 - PCM 16-bit: Full support

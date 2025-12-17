@@ -15,21 +15,54 @@ pub fn main() !void {
     defer std.process.argsFree(allocator, args);
 
     if (args.len < 4) {
-        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav> [ir.wav]\n", .{});
-        std.debug.print("Example: volt_neural input.wav model.nam output.wav\n", .{});
-        std.debug.print("Example with IR: volt_neural input.wav model.nam output.wav cabinet.wav\n", .{});
+        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav> [ir.wav] [OPTIONS]\n", .{});
+        std.debug.print("\nOptions:\n", .{});
+        std.debug.print("  --gain dB        Gain reduction before convolution (default: 0, no reduction)\n", .{});
+        std.debug.print("  --no-ir          Process with NAM only, skip IR even if provided\n", .{});
+        std.debug.print("\nExamples:\n", .{});
+        std.debug.print("  volt_neural input.wav model.nam output.wav\n", .{});
+        std.debug.print("  volt_neural input.wav model.nam output.wav cabinet.wav\n", .{});
+        std.debug.print("  volt_neural input.wav model.nam output.wav cabinet.wav --gain -6\n", .{});
+        std.debug.print("  volt_neural input.wav model.nam output.wav cabinet.wav --no-ir  (ignore IR)\n", .{});
         return;
     }
 
     const input_path = args[1];
     const model_path = args[2];
     const output_path = args[3];
-    const ir_path = if (args.len > 4) args[4] else null;
+
+    var ir_path: ?[]const u8 = null;
+    var gain_db: f64 = 0.0; // Changed from -6.0 to 0.0 (no reduction by default)
+    var skip_ir = false;
+
+    // Parse remaining arguments
+    var i: usize = 4;
+    while (i < args.len) : (i += 1) {
+        if (std.mem.eql(u8, args[i], "--gain")) {
+            if (i + 1 < args.len) {
+                gain_db = std.fmt.parseFloat(f64, args[i + 1]) catch 0.0;
+                i += 1;
+            }
+        } else if (std.mem.eql(u8, args[i], "--no-ir")) {
+            skip_ir = true;
+        } else if (!std.mem.startsWith(u8, args[i], "--")) {
+            // Assume it's IR path if not a flag
+            if (ir_path == null) {
+                ir_path = args[i];
+            }
+        }
+    }
+
+    // Skip IR if requested
+    if (skip_ir) {
+        ir_path = null;
+    }
 
     std.debug.print("Input:  {s}\n", .{input_path});
     std.debug.print("Model:  {s}\n", .{model_path});
     if (ir_path) |ir| {
         std.debug.print("IR:     {s}\n", .{ir});
+        std.debug.print("Gain:   {d} dB\n", .{gain_db});
     }
     std.debug.print("Output: {s}\n\n", .{output_path});
 
@@ -45,6 +78,11 @@ pub fn main() !void {
             return err;
         };
     defer processor.deinit();
+
+    // Apply gain setting if IR is used
+    if (ir_path != null) {
+        processor.pre_convolution_gain_db = gain_db;
+    }
 
     std.debug.print("Model loaded successfully!\n", .{});
     std.debug.print("Expected sample rate: {d} Hz\n", .{processor.model.expected_sample_rate});
