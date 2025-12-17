@@ -1,10 +1,45 @@
 const std = @import("std");
 const volt_neural = @import("volt_neural");
+const nam = @import("nam.zig");
 
 pub fn main() !void {
-    // Prints to stderr, ignoring potential errors.
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
-    try volt_neural.bufferedPrint();
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+    const allocator = gpa.allocator();
+
+    std.debug.print("Volt Neural Amp Modeler v0.1\n", .{});
+
+    // Get arguments
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
+
+    if (args.len < 3) {
+        std.debug.print("Usage: volt_neural <input.wav> <model.nam> <output.wav>\n", .{});
+        return;
+    }
+
+    const input_path = args[1];
+    const model_path = args[2];
+    const output_path = args[3];
+
+    std.debug.print("Input:  {s}\n", .{input_path});
+    std.debug.print("Model:  {s}\n", .{model_path});
+    std.debug.print("Output: {s}\n", .{output_path});
+
+    // Try to load the model
+    var model = nam.Model.load(allocator, model_path) catch |err| {
+        std.debug.print("Failed to load model: {}\n", .{err});
+        return;
+    };
+    defer model.deinit();
+
+    std.debug.print("Model loaded successfully!\n", .{});
+    std.debug.print("Expected sample rate: {d} Hz\n", .{model.expected_sample_rate});
+    std.debug.print("Has input level: {}\n", .{model.hasInputLevel()});
+    std.debug.print("Has output level: {}\n", .{model.hasOutputLevel()});
+    if (model.getLoudness()) |loudness| {
+        std.debug.print("Loudness: {d} dB\n", .{loudness});
+    }
 }
 
 test "simple test" {
